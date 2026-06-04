@@ -768,6 +768,8 @@ function app() {
         this.selectedType = data.projectType || 'ws_pharma';
         this.cartItems = data.items || [];
         this.travelItems = data.travelDetails || [];
+        this.saveResult = null;
+        this.userTouched = false;
         this.historyOpen = false;
       }).getProjectDetail(id);
     },
