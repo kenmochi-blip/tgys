@@ -156,34 +156,45 @@
                   </span>
                 </template>
                 <template x-if="!item.isHeader">
-                  <div class="row-content">
-                    <template x-if="showRankSelect(item)">
-                      <select class="rank-select" @change="updateRank(i, $event.target.value)">
-                        <option value="" :selected="!item.rankName">(職階を選択)</option>
-                        <template x-for="r in rankList" :key="r">
-                          <option :value="r" x-text="r" :selected="r === item.rankName"></option>
-                        </template>
-                      </select>
+                  <div>
+                    <div class="row-content">
+                      <template x-if="showRankSelect(item)">
+                        <select class="rank-select" @change="updateRank(i, $event.target.value)">
+                          <option value="" :selected="!item.rankName">(職階を選択)</option>
+                          <template x-for="r in rankList" :key="r">
+                            <option :value="r" x-text="r" :selected="r === item.rankName"></option>
+                          </template>
+                        </select>
+                      </template>
+                      <template x-if="!showRankSelect(item)">
+                        <input type="text" :value="item.rankName" class="rank-select" readonly style="background:#eee; color:#333;">
+                      </template>
+                      <span>@</span>
+                      <input type="number" :value="item.unitPrice" class="price-input" readonly>
+                      <span>×</span>
+                      <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;">h(本番)</span>
+                    </div>
+                    <template x-if="showPrepFor(item)">
+                      <div class="row-content" style="margin-top:6px; padding-left:30px;">
+                        <span style="color:#fd7e14; font-size:0.85em; font-weight:bold; width:300px; padding-left:8px;">準備・片付け・待機・移動</span>
+                        <span>@</span>
+                        <input type="number" :value="Math.round((item.unitPrice||0)/2)" class="price-input" readonly style="background:#fff3e0; color:#fd7e14;">
+                        <span>×</span>
+                        <input type="number" x-model.number="item.prepHours" class="prep-hours-input"><span style="font-size:0.85em; color:#fd7e14;">h(半額)</span>
+                      </div>
                     </template>
-                    <template x-if="!showRankSelect(item)">
-                      <input type="text" :value="item.rankName" class="rank-select" readonly style="background:#eee; color:#333;">
-                    </template>
-                    <span>@</span>
-                    <input type="number" :value="item.unitPrice" class="price-input" readonly>
-                    <span>×</span>
-                    <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;">h(本番)</span>
-                    <template x-if="hasPrepHours">
-                      <span style="display:inline-flex; align-items:center; gap:3px;">
-                        <span style="color:#fd7e14; font-weight:bold;">+</span>
-                        <input type="number" x-model.number="item.prepHours" class="prep-hours-input">
-                        <span style="font-size:0.8em; color:#fd7e14;">h(準備等 半額)</span>
-                      </span>
-                    </template>
-                    <span style="font-size:0.8em; color:#666; margin-left:3px;" x-text="'(' + (((item.hours||0) + (item.prepHours||0)) / 8).toFixed(2) + '人日)'"></span>
                   </div>
                 </template>
               </td>
-              <td class="price-cell" x-text="stageOrItemSubtotal(i).toLocaleString()"></td>
+              <td class="price-cell">
+                <template x-if="!item.isHeader">
+                  <div style="font-size:0.75em; color:#666; font-weight:normal; font-family:inherit;" x-text="rowTimeDisplay(item)"></div>
+                </template>
+                <template x-if="item.isHeader">
+                  <div style="font-size:0.75em; color:#0056b3; font-weight:normal; font-family:inherit;" x-text="stageTimeDisplay(i)"></div>
+                </template>
+                <div x-text="stageOrItemSubtotal(i).toLocaleString()"></div>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -360,6 +371,23 @@ function app() {
 
     get rankList() { return Object.keys(this.masters.unitPrices); },
     get hasPrepHours() { return ['ws_normal','panel','other'].includes(this.selectedType); },
+    showPrepFor(item) {
+      return this.hasPrepHours && !item.isHeader && item.eventType && item.eventType.indexOf('当日') > -1;
+    },
+    rowTimeDisplay(item) {
+      const h = (Number(item.hours)||0) + (Number(item.prepHours)||0);
+      if (h === 0) return '';
+      return '(' + h + 'h / ' + (h/8).toFixed(2) + '人日)';
+    },
+    stageTimeDisplay(i) {
+      let h = 0;
+      for (let j = i+1; j < this.cartItems.length; j++) {
+        if (this.cartItems[j].isHeader) break;
+        h += (Number(this.cartItems[j].hours)||0) + (Number(this.cartItems[j].prepHours)||0);
+      }
+      if (h === 0) return '';
+      return '(' + h + 'h / ' + (h/8).toFixed(2) + '人日)';
+    },
     itemSubtotal(item) {
       if (item.isHeader) return 0;
       const up = Number(item.unitPrice) || 0;
