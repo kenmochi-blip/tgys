@@ -21,6 +21,8 @@
     .vars-section { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px; }
     .btn { padding: 12px 24px; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 1em; width: 100%; }
     .btn-calc { background: #28a745; color: white; margin-top: 15px; font-size: 1.1em; }
+    .btn-mini-regen { background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; height: fit-content; }
+    .btn-mini-regen:hover { background: #218838; }
     .btn-save { background: #0056b3; color: white; font-size: 1.2em; margin-top: 30px; }
     .btn-save:disabled { background: #ccc; cursor: not-allowed; }
     .btn-reset { background: #6c757d; color: white; font-size: 0.8em; padding: 8px 15px; width: auto; }
@@ -107,8 +109,11 @@
 
       <div class="vars-section">
         <div x-show="selectedType === 'ws_pharma'">
-          <div class="form-group"><label>テーブル数 (1〜17)</label>
-            <input type="number" x-model.number="pharmaTableCount" min="1" max="17" style="width:100px;">
+          <div style="display:flex; gap:10px; align-items:flex-end;">
+            <div class="form-group" style="flex:0 0 auto;"><label>テーブル数 (1〜17)</label>
+              <input type="number" x-model.number="pharmaTableCount" min="1" max="17" style="width:100px;">
+            </div>
+            <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
           </div>
         </div>
         <div x-show="selectedType === 'ws_normal'">
@@ -122,20 +127,25 @@
               <label class="check-label"><input type="checkbox" x-model="hasFaci"> 当日ファシリあり</label>
               <label class="check-label"><input type="checkbox" x-model="hasMatome"> 取りまとめあり</label>
             </div>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
+            </div>
           </div>
         </div>
         <div x-show="selectedType === 'graphic'">
-          <div class="form-row"><div class="form-group"><label>人数</label>
-            <input type="number" x-model.number="grPeople" min="1">
-          </div></div>
+          <div style="display:flex; gap:10px; align-items:flex-end;">
+            <div class="form-group" style="flex:0 0 auto;"><label>人数</label>
+              <input type="number" x-model.number="grPeople" min="1" style="width:100px;">
+            </div>
+            <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
+          </div>
         </div>
         <div x-show="selectedType === 'panel'">
-          <p style="color:#0056b3; font-weight:bold;">※パネルディスカッション規定のマスタ（固定値）を読み込みます。</p>
+          <p style="color:#0056b3; font-weight:bold; margin:0;">※パネルディスカッション規定のマスタ（固定値）を読み込みます。</p>
         </div>
         <div x-show="selectedType === 'project' || selectedType === 'other'">
-          <p style="color:#666;">※すべてのステージと職階を0時間で表示します。必要な箇所を入力してください。</p>
+          <p style="color:#666; margin:0;">※すべてのステージと職階を0時間で表示します。必要な箇所を入力してください。</p>
         </div>
-        <button class="btn btn-calc" @click="calcDefaultItems()">⬇ 条件を元に明細を自動生成</button>
       </div>
 
       <table>
@@ -510,9 +520,40 @@ function app() {
       } catch (e) { console.warn('restore failed', e); return false; }
     },
 
+    hasUserData() {
+      return this.cartItems.some(it => !it.isHeader && ((Number(it.hours)||0) > 0 || (Number(it.prepHours)||0) > 0));
+    },
+
     selectType(type) {
+      if (type === this.selectedType) return;
+      if (this.hasUserData() && !confirm('現在の入力内容を破棄してタイプを切り替えますか？')) return;
       this.selectedType = type;
       this.overheadRate = (type === 'graphic') ? 0 : 30;
+      this._buildItemsForType();
+    },
+
+    regenerate() {
+      if (this.hasUserData() && !confirm('現在の入力内容を破棄して再生成しますか？')) return;
+      this._buildItemsForType();
+    },
+
+    _buildItemsForType() {
+      this.cartItems = [];
+      const type = this.selectedType;
+      if (type === 'ws_pharma') {
+        this.processMasterData(this.masters.pharma, this.pharmaTableCount + 1);
+      } else if (type === 'panel') {
+        this.processMasterData(this.masters.panel, 2);
+      } else if (type === 'ws_normal') {
+        this.generateWSNormal();
+      } else if (type === 'graphic') {
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, prepHours:0, subtotal:80000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, prepHours:0, subtotal:40000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, prepHours:0, subtotal:10000 });
+        this.overheadRate = 0;
+      } else {
+        this.generateFromTemplate();
+      }
     },
 
     onRankChange(i) {
@@ -550,26 +591,6 @@ function app() {
       if (!t.from || !t.to) { alert('出発地と到着地を入力してください'); return; }
       const q = 'eki1=' + encodeURIComponent(t.from) + '&eki2=' + encodeURIComponent(t.to) + '&Csg=1&rf=nr&S=S';
       window.open('https://www.jorudan.co.jp/norikae/cgi/nori.cgi?' + q, 'jorudan_transit', 'width=800,height=800');
-    },
-
-    calcDefaultItems() {
-      if (!confirm('現在の明細をクリアして、再生成しますか？')) return;
-      this.cartItems = [];
-      const type = this.selectedType;
-      if (type === 'ws_pharma') {
-        this.processMasterData(this.masters.pharma, this.pharmaTableCount + 1);
-      } else if (type === 'panel') {
-        this.processMasterData(this.masters.panel, 2);
-      } else if (type === 'ws_normal') {
-        this.generateWSNormal();
-      } else if (type === 'graphic') {
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, prepHours:0, subtotal:80000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, prepHours:0, subtotal:40000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, prepHours:0, subtotal:10000 });
-        this.overheadRate = 0;
-      } else {
-        this.generateFromTemplate();
-      }
     },
 
     processMasterData(data, colIndex) {
