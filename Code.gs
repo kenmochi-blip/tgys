@@ -1,8 +1,24 @@
 // ========================================
 // 設定
 // ========================================
+// ★現行スプレッドシート (顧客リスト・マスタ・案件管理 等が入っている正本) のID
+// スプレッドシートURL: https://docs.google.com/spreadsheets/d/【ここがID】/edit
+const MAIN_SS_ID = 'ここに現行スプレッドシートのIDを貼る';
+
 const TEMPLATE_SS_ID = '1_guv8ou75mJ1SceBymgOYS9bUGztirx_7PARcXsk8mM';
 const DESTINATION_FOLDER_ID = '11oyvYyiWDIz5ogII2i-abbw1gJtKDHTJ';
+
+// バインド済みでも独立スクリプトでもどちらでも動くようにする
+function getMainSS_() {
+  if (MAIN_SS_ID && MAIN_SS_ID.indexOf('ここに') === -1) {
+    return SpreadsheetApp.openById(MAIN_SS_ID);
+  }
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (!active) {
+    throw new Error('スプレッドシートに紐付いていません。Code.gs の MAIN_SS_ID に現行スプレッドシートのIDを設定してください。');
+  }
+  return active;
+}
 
 const SHEET_NAMES = {
   CLIENT: '顧客リスト',
@@ -44,13 +60,13 @@ function getInitialData() {
 }
 
 function getClientList_() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.CLIENT);
+  const sh = getMainSS_().getSheetByName(SHEET_NAMES.CLIENT);
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat().filter(String);
 }
 
 function getUnitPriceMaster_() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.UNIT_PRICE);
+  const sh = getMainSS_().getSheetByName(SHEET_NAMES.UNIT_PRICE);
   if (!sh || sh.getLastRow() < 2) return {};
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
   const prices = {};
@@ -59,7 +75,7 @@ function getUnitPriceMaster_() {
 }
 
 function getMasterByName_(sheetName, fixedCols) {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const sh = getMainSS_().getSheetByName(sheetName);
   if (!sh || sh.getLastRow() < 2) return [];
   const cols = fixedCols || sh.getLastColumn();
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, cols).getValues();
@@ -95,7 +111,7 @@ function getTemplateStructure_() {
 // 履歴 / 読み込み / 削除
 // ========================================
 function getRecentProjects() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.PROJECT);
+  const sh = getMainSS_().getSheetByName(SHEET_NAMES.PROJECT);
   if (!sh || sh.getLastRow() < 2) return [];
   const colNum = Math.max(sh.getLastColumn(), PROJECT_COL.TYPE);
   const rows = sh.getRange(2, 1, sh.getLastRow() - 1, colNum).getValues();
@@ -118,7 +134,7 @@ function getRecentProjects() {
 }
 
 function getProjectDetail(projectId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getMainSS_();
   const pSh = ss.getSheetByName(SHEET_NAMES.PROJECT);
   const pData = pSh.getDataRange().getValues();
   const projectRow = pData.find(r => r[PROJECT_COL.ID - 1] === projectId);
@@ -182,7 +198,7 @@ function deleteProject(projectId) {
   const lock = LockService.getDocumentLock();
   if (!lock.tryLock(15000)) return { success: false, message: 'ロック取得失敗' };
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getMainSS_();
     deleteRowsByMatch_(ss.getSheetByName(SHEET_NAMES.PROJECT), PROJECT_COL.ID, projectId);
     deleteRowsByMatch_(ss.getSheetByName(SHEET_NAMES.DETAIL), DETAIL_COL.PROJECT_ID, projectId);
     deleteRowsByMatch_(ensureTravelSheet_(), TRAVEL_COL.PROJECT_ID, projectId);
@@ -205,7 +221,7 @@ function deleteRowsByMatch_(sheet, colIndex, value) {
 }
 
 function ensureTravelSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getMainSS_();
   let sh = ss.getSheetByName(SHEET_NAMES.TRAVEL);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAMES.TRAVEL);
@@ -224,7 +240,7 @@ function saveDataToSheet(formData) {
     return { success: false, message: '他の処理が実行中です。少し時間をおいて再度お試しください。' };
   }
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getMainSS_();
     const pSh = ss.getSheetByName(SHEET_NAMES.PROJECT);
     const dSh = ss.getSheetByName(SHEET_NAMES.DETAIL);
     const tSh = ensureTravelSheet_();
