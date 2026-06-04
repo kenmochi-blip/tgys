@@ -222,7 +222,7 @@ function getProjectDetail(projectId) {
 }
 
 function deleteProject(projectId) {
-  const lock = LockService.getDocumentLock();
+  const lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { success: false, message: 'ロック取得失敗' };
   try {
     const ss = getMainSS_();
@@ -262,7 +262,7 @@ function ensureTravelSheet_() {
 // 保存
 // ========================================
 function saveDataToSheet(formData) {
-  const lock = LockService.getDocumentLock();
+  const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
     return { success: false, message: '他の処理が実行中です。少し時間をおいて再度お試しください。' };
   }
