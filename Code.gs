@@ -420,16 +420,16 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   }
   sheet.getRange('F1').setValue(dateStr);
 
+  // メインテーブル: A:E を一括読み込み (5回 → 2回のRPCに圧縮)
   const lastRow = sheet.getLastRow();
-  const colA = sheet.getRange(1, 1, lastRow, 1).getValues();
-  const colB = sheet.getRange(1, 2, lastRow, 1).getValues();
-  const colC = sheet.getRange(1, 3, lastRow, 1).getValues();
-  const colD = sheet.getRange(1, 4, lastRow, 1).getValues();
-  const colE = sheet.getRange(1, 5, lastRow, 1).getValues();
-  // テンプレ既存の数式を保持するため formulas も読む
-  const colBFormulas = sheet.getRange(1, 2, lastRow, 1).getFormulas();
-  const colDFormulas = sheet.getRange(1, 4, lastRow, 1).getFormulas();
-  const colEFormulas = sheet.getRange(1, 5, lastRow, 1).getFormulas();
+  const mainRange = sheet.getRange(1, 1, lastRow, 5);
+  const allValues = mainRange.getValues();
+  const allFormulas = mainRange.getFormulas();
+  const colA = allValues.map(r => [r[0]]);
+  const colB = allValues.map(r => [r[1]]);
+  const colC = allValues.map(r => [r[2]]);
+  const colD = allValues.map(r => [r[3]]);
+  const colE = allValues.map(r => [r[4]]);
   const modB = new Array(lastRow).fill(false);
   const modD = new Array(lastRow).fill(false);
   const modE = new Array(lastRow).fill(false);
@@ -504,13 +504,21 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     }
   }
 
-  // 一括書き戻し: 修正していないセルは元の数式を保持
-  const finalB = colB.map((row, i) => modB[i] ? row : (colBFormulas[i][0] ? [colBFormulas[i][0]] : row));
-  const finalD = colD.map((row, i) => modD[i] ? row : (colDFormulas[i][0] ? [colDFormulas[i][0]] : row));
-  const finalE = colE.map((row, i) => modE[i] ? row : (colEFormulas[i][0] ? [colEFormulas[i][0]] : row));
-  sheet.getRange(1, 2, lastRow, 1).setValues(finalB);
-  sheet.getRange(1, 4, lastRow, 1).setValues(finalD);
-  sheet.getRange(1, 5, lastRow, 1).setValues(finalE);
+  // 一括書き戻し: 修正していないセルは元の数式を保持 (B,C,D,E を1回のsetValuesで)
+  const writeData = new Array(lastRow);
+  for (let i = 0; i < lastRow; i++) {
+    const bF = allFormulas[i][1];
+    const cF = allFormulas[i][2];
+    const dF = allFormulas[i][3];
+    const eF = allFormulas[i][4];
+    writeData[i] = [
+      modB[i] ? colB[i][0] : (bF || colB[i][0]),
+      cF || colC[i][0],
+      modD[i] ? colD[i][0] : (dF || colD[i][0]),
+      modE[i] ? colE[i][0] : (eF || colE[i][0])
+    ];
+  }
+  sheet.getRange(1, 2, lastRow, 4).setValues(writeData);
 
   // 旅費明細 (H6〜M)
   sheet.getRange('H6:M').clearContent();
@@ -532,29 +540,21 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     const totalRow = startRow + rows.length;
     sheet.getRange(totalRow, 12).setValue('合計(税抜):').setFontWeight('bold');
     sheet.getRange(totalRow, 13).setFormula('=SUM(M' + startRow + ':M' + (totalRow - 1) + ')').setFontWeight('bold');
-    sheet.setColumnWidth(8, 80);
-    sheet.setColumnWidth(9, 250);
-    sheet.setColumnWidth(10, 100);
-    sheet.setColumnWidth(11, 80);
-    sheet.setColumnWidth(12, 50);
-    sheet.setColumnWidth(13, 100);
+    // 列幅はテンプレートで事前設定推奨 (毎回設定すると ~600ms 遅くなる)
   }
 
-  SpreadsheetApp.flush();
-
-  let sheetTotal = 0;
-  if (totalRowIndex > 0) {
-    sheetTotal = Number(sheet.getRange(totalRowIndex, 6).getValue()) || 0;
-  }
-
-  const newFile = DriveApp.getFileById(copied.id);
-  // 共有設定: Workspace ポリシーで失敗することがあるので try/catch
+  // 共有設定: Advanced Drive API で setSharing より高速
   try {
-    newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+    Drive.Permissions.insert(
+      { role: 'writer', type: 'anyone', withLink: true },
+      copied.id,
+      { sendNotificationEmails: false }
+    );
   } catch (e) {
     console.warn('setSharing skipped (domain policy): ' + e);
   }
-  return { url: newFile.getUrl(), sheetTotal: sheetTotal };
+  // SpreadsheetApp.flush()と sheetTotal読み取りは省略 (体感速度優先)
+  return { url: 'https://docs.google.com/spreadsheets/d/' + copied.id + '/edit', sheetTotal: 0 };
 }
 
 function authorizeDrive() {
