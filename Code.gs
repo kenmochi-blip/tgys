@@ -477,8 +477,17 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   }
 
   const newFile = DriveApp.getFileById(copied.id);
-  newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+  // 共有設定: Workspace ポリシーで失敗することがあるので try/catch
+  try {
+    newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+  } catch (e) {
+    console.warn('setSharing skipped (domain policy): ' + e);
+  }
   return { url: newFile.getUrl(), sheetTotal: sheetTotal };
 }
 
-function authorizeDrive() { Drive.Files.list({maxResults: 1}); console.log('認証完了！'); }
+function authorizeDrive() {
+  Drive.Files.list({maxResults: 1});
+  DriveApp.getRootFolder().getName();
+  console.log('認証完了！');
+}
