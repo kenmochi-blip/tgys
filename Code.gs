@@ -115,6 +115,8 @@ function getIllustStructure_() {
     if (!stage) continue;  // ステージ番号前のカテゴリヘッダーはスキップ
     const price = Number(row[3]) || 0;
     const unit = String(row[2] || '').trim();
+    // 単位なし行 = カテゴリヘッダー / 区切り行 とみなしてスキップ
+    if (!unit) continue;
     result.push({ stage, role: cell, price, unit });
   }
   return result;

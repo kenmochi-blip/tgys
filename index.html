@@ -182,7 +182,7 @@
                       <span>@</span>
                       <input type="number" :value="item.unitPrice" class="price-input" readonly>
                       <span>×</span>
-                      <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;">h(本番)</span>
+                      <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;" x-text="unitLabel(item)"></span>
                     </div>
                     <template x-if="showPrepFor(item)">
                       <div class="row-content" style="margin-top:6px;">
@@ -386,7 +386,16 @@ function app() {
     showPrepFor(item) {
       return this.hasPrepHours && !item.isHeader && item.eventType && item.eventType.indexOf('当日') > -1;
     },
+    unitLabel(item) {
+      if (item.unit === '式') return '式';
+      if (item.unit === '人日') return '人日';
+      return 'h(本番)';
+    },
+    isHourlyItem(item) {
+      return item.unit !== '式' && item.unit !== '人日';
+    },
     rowTimeDisplay(item) {
+      if (!this.isHourlyItem(item)) return '';
       const h = (Number(item.hours)||0) + (Number(item.prepHours)||0);
       if (h === 0) return '';
       return '(' + h + 'h / ' + (h/8).toFixed(2) + '人日)';
@@ -395,6 +404,7 @@ function app() {
       let h = 0;
       for (let j = i+1; j < this.cartItems.length; j++) {
         if (this.cartItems[j].isHeader) break;
+        if (!this.isHourlyItem(this.cartItems[j])) continue;
         h += (Number(this.cartItems[j].hours)||0) + (Number(this.cartItems[j].prepHours)||0);
       }
       if (h === 0) return '';
@@ -677,7 +687,7 @@ function app() {
         const price = (item.price !== undefined && item.price > 0)
           ? item.price
           : (this.masters.unitPrices[item.role] || 0);
-        this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:item.role, unitPrice:price, hours:0, prepHours:0, subtotal:0 });
+        this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:item.role, unitPrice:price, hours:0, prepHours:0, subtotal:0, unit: item.unit || '' });
       }
     },
 
