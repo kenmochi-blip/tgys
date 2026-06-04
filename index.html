@@ -367,9 +367,11 @@ function app() {
     _saveDraftTimer: null,
 
     get rankList() { return Object.keys(this.masters.unitPrices); },
-    get hasPrepHours() { return ['ws_normal','panel','other'].includes(this.selectedType); },
+    // 「当日」を含むステージなら全タイプで準備・片付け行を表示
     showPrepFor(item) {
-      return this.hasPrepHours && !item.isHeader && item.eventType && item.eventType.indexOf('当日') > -1;
+      if (item.isHeader) return false;
+      if (!item.eventType) return false;
+      return item.eventType.indexOf('当日') > -1;
     },
     unitLabel(item) {
       if (item.unit === '式') return '式';
@@ -625,8 +627,7 @@ function app() {
         let stage = row[0];
         const role = row[1];
         const cond = String(row[2]||'');
-        if (cond.indexOf('ファシリ') > -1 && !this.hasFaci) return;
-        if ((cond.indexOf('取りまとめ') > -1 || cond.indexOf('とりまとめ') > -1) && !this.hasMatome) return;
+        // ステージ追跡を先に更新 (フィルタで早期returnしてもステージは進める)
         if (!stage && lastStage) stage = lastStage;
         if (stage) lastStage = stage;
         if (stage && stage.indexOf('諸経費') > -1) {
@@ -639,6 +640,9 @@ function app() {
           currentStage = stage;
           this.cartItems.push({ isHeader:true, eventType:currentStage, rankName:'', unitPrice:0, hours:0, subtotal:0 });
         }
+        // フィルタチェックは currentStage 更新後 (行スキップ)
+        if (cond.indexOf('ファシリ') > -1 && !this.hasFaci) return;
+        if ((cond.indexOf('取りまとめ') > -1 || cond.indexOf('とりまとめ') > -1) && !this.hasMatome) return;
         if (role) {
           const hours = Number(row[colIndex]) || 0;
           const price = this.masters.unitPrices[role] || 0;
