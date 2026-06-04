@@ -154,10 +154,10 @@
                 <template x-if="!item.isHeader">
                   <div class="row-content">
                     <template x-if="showRankSelect(item)">
-                      <select class="rank-select" x-model="item.rankName" @change="onRankChange(i)">
-                        <option value="">(職階を選択)</option>
+                      <select class="rank-select" @change="updateRank(i, $event.target.value)">
+                        <option value="" :selected="!item.rankName">(職階を選択)</option>
                         <template x-for="r in rankList" :key="r">
-                          <option :value="r" x-text="r"></option>
+                          <option :value="r" x-text="r" :selected="r === item.rankName"></option>
                         </template>
                       </select>
                     </template>
@@ -464,6 +464,11 @@ function app() {
     onRankChange(i) {
       const r = this.cartItems[i].rankName;
       this.cartItems[i].unitPrice = this.masters.unitPrices[r] || 0;
+    },
+
+    updateRank(i, rankName) {
+      this.cartItems[i].rankName = rankName;
+      this.cartItems[i].unitPrice = this.masters.unitPrices[rankName] || 0;
     },
 
     addItemToStage(index) {
