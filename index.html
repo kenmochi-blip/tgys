@@ -630,24 +630,32 @@ function app() {
     },
 
     generateFromTemplate() {
-      const tpl = this.masters.templateStructure;
-      if (!tpl || tpl.length === 0) { alert('テンプレート構造が読み込まれていません。'); return; }
+      // project タイプは illustStructure、other は templateStructure を使う
+      const tpl = (this.selectedType === 'project')
+        ? this.masters.illustStructure
+        : this.masters.templateStructure;
+      if (!tpl || tpl.length === 0) {
+        alert(this.selectedType === 'project'
+          ? 'イラスト用テンプレ（内訳明細イラストのみシート）が読み込まれていません。'
+          : 'テンプレート構造が読み込まれていません。');
+        return;
+      }
       let currentStage = '';
       const seenStageNums = new Set();
-      let stopProcessing = false;
       for (const item of tpl) {
-        if (stopProcessing) break;
         if (item.stage.indexOf('旅費') > -1 || item.stage.indexOf('交通費') > -1) continue;
         if (item.stage !== currentStage) {
-          // ステージ番号で重複検知 (テンプレ末尾に同じ構造が繰り返されているケース対策)
           const m = item.stage.match(/^[\(（](\d+)/);
           const stageKey = m ? m[1] : item.stage;
-          if (seenStageNums.has(stageKey)) { stopProcessing = true; break; }
+          if (seenStageNums.has(stageKey)) break;
           seenStageNums.add(stageKey);
           currentStage = item.stage;
           this.cartItems.push({ isHeader:true, eventType:currentStage, rankName:'', unitPrice:0, hours:0, subtotal:0 });
         }
-        const price = this.masters.unitPrices[item.role] || 0;
+        // illustStructure は price をシートから持っている / templateStructure は unitPrices から
+        const price = (item.price !== undefined && item.price > 0)
+          ? item.price
+          : (this.masters.unitPrices[item.role] || 0);
         this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:item.role, unitPrice:price, hours:0, prepHours:0, subtotal:0 });
       }
     },

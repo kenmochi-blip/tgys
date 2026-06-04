@@ -82,8 +82,42 @@ function getInitialData() {
     pharma: getMasterByName_(SHEET_NAMES.PHARMA),
     wsNormal: getMasterByName_(SHEET_NAMES.WS_NORMAL),
     panel: getMasterByName_(SHEET_NAMES.PANEL, 3),
-    templateStructure: getTemplateStructure_()
+    templateStructure: getTemplateStructure_(),
+    illustStructure: getIllustStructure_()
   };
+}
+
+// イラスト専用テンプレ (内訳明細イラストのみ) から品目構造を取得
+function getIllustStructure_() {
+  const sh = SpreadsheetApp.openById(TEMPLATE_SS_ID).getSheetByName('内訳明細イラストのみ');
+  if (!sh || sh.getLastRow() < 1) return [];
+  const data = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();  // A:D 列
+  const result = [];
+  const seenStageNums = new Set();
+  let stage = '';
+  for (const row of data) {
+    const cell = String(row[0]).trim();
+    if (!cell) continue;
+    const stageMatch = cell.match(/^[\(（](\d+)/);
+    if (stageMatch) {
+      const num = stageMatch[1];
+      if (seenStageNums.has(num)) break;
+      seenStageNums.add(num);
+      // 管理費・特急料金・小計 等のステージはアプリ画面では扱わない
+      if (/管理費|諸経費|特急|小計|合計/.test(cell)) {
+        stage = '';
+        continue;
+      }
+      stage = cell;
+      continue;
+    }
+    if (/管理費|諸経費|小計|合計|出精|消費税|内訳|品名/.test(cell)) continue;
+    if (!stage) continue;  // ステージ番号前のカテゴリヘッダーはスキップ
+    const price = Number(row[3]) || 0;
+    const unit = String(row[2] || '').trim();
+    result.push({ stage, role: cell, price, unit });
+  }
+  return result;
 }
 
 function getClientList_() {
@@ -366,7 +400,9 @@ function updateSpreadsheetTemplate_(data, dateStr) {
 
   const copied = Drive.Files.copy({ title: fileName, parents: [{id: DESTINATION_FOLDER_ID}] }, TEMPLATE_SS_ID);
   const newSs = SpreadsheetApp.openById(copied.id);
-  const targetName = (data.selectedType === 'graphic') ? '内訳明細グラレコのみ' : '内訳明細';
+  let targetName = '内訳明細';
+  if (data.selectedType === 'graphic') targetName = '内訳明細グラレコのみ';
+  else if (data.selectedType === 'project') targetName = '内訳明細イラストのみ';
 
   newSs.getSheets().forEach(s => {
     if (s.getName() !== targetName) { try { newSs.deleteSheet(s); } catch (e) {} }
