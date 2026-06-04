@@ -404,7 +404,13 @@ function app() {
         .withSuccessHandler(data => {
           this.masters = data;
           this.loading = false;
-          this.restoreDraft();
+          const restored = this.restoreDraft();
+          if (!restored) {
+            // 初期表示: 「プロジェクトその他」の明細をデフォルト表示
+            this.selectedType = 'other';
+            this.overheadRate = 30;
+            this.generateFromTemplate();
+          }
           this.$watch('cartItems', () => this.saveDraft(), { deep: true });
           this.$watch('travelItems', () => this.saveDraft(), { deep: true });
           this.$watch('clientName', () => this.saveDraft());
@@ -435,13 +441,13 @@ function app() {
     restoreDraft() {
       try {
         const raw = localStorage.getItem('mitsumori_draft_v4');
-        if (!raw) return;
+        if (!raw) return false;
         const d = JSON.parse(raw);
-        if (Date.now() - (d.ts||0) > 24*3600*1000) { localStorage.removeItem('mitsumori_draft_v4'); return; }
-        if (!d.clientName && !d.projectTitle && (!d.cartItems || d.cartItems.length === 0)) return;
+        if (Date.now() - (d.ts||0) > 24*3600*1000) { localStorage.removeItem('mitsumori_draft_v4'); return false; }
+        if (!d.clientName && !d.projectTitle && (!d.cartItems || d.cartItems.length === 0)) return false;
         if (!confirm('下書きが見つかりました。復元しますか？\n顧客名: ' + (d.clientName||'(空)') + '\n案件名: ' + (d.projectTitle||'(空)'))) {
           localStorage.removeItem('mitsumori_draft_v4');
-          return;
+          return false;
         }
         this.clientName = d.clientName || '';
         this.projectTitle = d.projectTitle || '';
@@ -453,7 +459,8 @@ function app() {
         this.travelItems = d.travelItems || [];
         this.currentProjectId = d.currentProjectId || '';
         this.draftRestored = true;
-      } catch (e) { console.warn('restore failed', e); }
+        return true;
+      } catch (e) { console.warn('restore failed', e); return false; }
     },
 
     selectType(type) {
