@@ -138,7 +138,7 @@
       </div>
 
       <table>
-        <thead><tr><th width="50"></th><th width="450">ステージ / 業務内容 / 職階</th><th>小計</th></tr></thead>
+        <thead><tr><th width="50"></th><th width="450">ステージ / 業務内容 / 職階</th><th style="text-align:right;">小計</th></tr></thead>
         <tbody>
           <template x-for="(item, i) in cartItems" :key="i">
             <tr :class="{ 'stage-row': item.isHeader }">
@@ -171,7 +171,7 @@
                       <span>@</span>
                       <input type="number" :value="item.unitPrice" class="price-input" readonly>
                       <span>×</span>
-                      <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;" x-text="unitLabel(item)"></span>
+                      <input type="number" x-model.number="item.hours" @input="userTouched = true" class="hours-input"><span style="font-size:0.85em;" x-text="unitLabel(item)"></span>
                     </div>
                     <template x-if="showPrepFor(item)">
                       <div class="row-content" style="margin-top:6px;">
@@ -179,7 +179,7 @@
                         <span>@</span>
                         <input type="number" :value="Math.round((item.unitPrice||0)/2)" class="price-input" readonly style="background:#fff3e0; color:#fd7e14;">
                         <span>×</span>
-                        <input type="number" x-model.number="item.prepHours" class="prep-hours-input"><span style="font-size:0.85em; color:#fd7e14;">h(半額)</span>
+                        <input type="number" x-model.number="item.prepHours" @input="userTouched = true" class="prep-hours-input"><span style="font-size:0.85em; color:#fd7e14;">h(半額)</span>
                       </div>
                     </template>
                   </div>
@@ -345,6 +345,7 @@ function app() {
     saving: false,
     saveResult: null,
     draftRestored: false,
+    userTouched: false,
     currentProjectId: '',
     clientName: '',
     projectTitle: '',
@@ -519,13 +520,9 @@ function app() {
       } catch (e) { console.warn('restore failed', e); return false; }
     },
 
-    hasUserData() {
-      return this.cartItems.some(it => !it.isHeader && ((Number(it.hours)||0) > 0 || (Number(it.prepHours)||0) > 0));
-    },
-
     selectType(type) {
       if (type === this.selectedType) return;
-      if (this.hasUserData() && !confirm('現在の入力内容を破棄してタイプを切り替えますか？')) return;
+      if (this.userTouched && !confirm('入力内容を破棄してタイプを切り替えますか？')) return;
       this.selectedType = type;
       this.overheadRate = (type === 'graphic') ? 0 : 30;
       this._buildItemsForType();
@@ -538,6 +535,7 @@ function app() {
 
     _buildItemsForType() {
       this.cartItems = [];
+      this.userTouched = false;
       const type = this.selectedType;
       if (type === 'ws_pharma') {
         this.processMasterData(this.masters.pharma, this.pharmaTableCount + 1);
