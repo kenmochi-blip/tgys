@@ -23,7 +23,7 @@
     .btn-calc { background: #28a745; color: white; margin-top: 15px; font-size: 1.1em; }
     .btn-save { background: #0056b3; color: white; font-size: 1.2em; margin-top: 30px; }
     .btn-save:disabled { background: #ccc; cursor: not-allowed; }
-    .btn-reset { background: #6c757d; color: white; margin-top: 30px; font-size: 0.9em; width: auto; display: block; margin: 30px auto 0; }
+    .btn-reset { background: #6c757d; color: white; font-size: 0.8em; padding: 8px 15px; width: auto; }
     .btn-history { background: #6c757d; color: white; font-size: 0.8em; padding: 8px 15px; width: auto; }
     .del-btn { color: #fff; background-color: #dc3545; padding: 4px 8px; border-radius: 4px; cursor: pointer; border: none; font-size: 0.8em;}
     .add-row-btn { background-color: #fff; color: #28a745; border: 1px solid #28a745; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; cursor: pointer; margin-left: 10px; font-size: 14px; line-height: 22px; }
@@ -65,7 +65,10 @@
 <div x-data="app()" x-init="init()" x-cloak class="container">
   <h2>
     見積シミュレーターv4
-    <button class="btn btn-history" @click="openHistory()">📂 履歴呼出</button>
+    <span style="display:flex; gap:8px;">
+      <button class="btn btn-reset" @click="resetForm()" style="margin:0;">↻ リセット</button>
+      <button class="btn btn-history" @click="openHistory()">📂 履歴呼出</button>
+    </span>
   </h2>
 
   <template x-if="loading">
@@ -272,8 +275,6 @@
           </div>
         </div>
       </template>
-
-      <button class="btn btn-reset" @click="resetForm()">↻ リセットして新規入力</button>
     </div>
   </template>
 
