@@ -461,7 +461,7 @@ function app() {
             // 初期表示: 「プロジェクトその他」の明細をデフォルト表示
             this.selectedType = 'other';
             this.overheadRate = 30;
-            this.generateFromTemplate();
+            this._buildItemsForType();
           }
           this.$watch('cartItems', () => this.saveDraft(), { deep: true });
           this.$watch('travelItems', () => this.saveDraft(), { deep: true });
@@ -658,15 +658,21 @@ function app() {
           : 'テンプレート構造が読み込まれていません。');
         return;
       }
+      // 全角→半角変換ヘルパ
+      const toHalf = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
       let currentStage = '';
       const seenStageNums = new Set();
+      const seenStageTexts = new Set();
       for (const item of tpl) {
         if (item.stage.indexOf('旅費') > -1 || item.stage.indexOf('交通費') > -1) continue;
         if (item.stage !== currentStage) {
-          const m = item.stage.match(/^[\(（](\d+)/);
-          const stageKey = m ? m[1] : item.stage;
-          if (seenStageNums.has(stageKey)) break;
+          const normalized = toHalf(String(item.stage));
+          const m = normalized.match(/^[\(（](\d+)/);
+          const stageKey = m ? m[1] : normalized;
+          // 番号またはテキストで重複検知
+          if (seenStageNums.has(stageKey) || seenStageTexts.has(normalized)) break;
           seenStageNums.add(stageKey);
+          seenStageTexts.add(normalized);
           currentStage = item.stage;
           this.cartItems.push({ isHeader:true, eventType:currentStage, rankName:'', unitPrice:0, hours:0, subtotal:0 });
         }
