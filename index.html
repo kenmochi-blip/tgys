@@ -21,8 +21,6 @@
     .vars-section { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px; }
     .btn { padding: 12px 24px; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 1em; width: 100%; }
     .btn-calc { background: #28a745; color: white; margin-top: 15px; font-size: 1.1em; }
-    .btn-mini-regen { background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; height: fit-content; }
-    .btn-mini-regen:hover { background: #218838; }
     .btn-save { background: #0056b3; color: white; font-size: 1.2em; margin-top: 30px; }
     .btn-save:disabled { background: #ccc; cursor: not-allowed; }
     .btn-reset { background: #6c757d; color: white; font-size: 0.8em; padding: 8px 15px; width: auto; }
@@ -109,11 +107,8 @@
 
       <div class="vars-section">
         <div x-show="selectedType === 'ws_pharma'">
-          <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div class="form-group" style="flex:0 0 auto;"><label>テーブル数 (1〜17)</label>
-              <input type="number" x-model.number="pharmaTableCount" min="1" max="17" style="width:100px;">
-            </div>
-            <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
+          <div class="form-group" style="flex:0 0 auto;"><label>テーブル数 (1〜17)</label>
+            <input type="number" x-model.number="pharmaTableCount" min="1" max="17" style="width:100px;">
           </div>
         </div>
         <div x-show="selectedType === 'ws_normal'">
@@ -126,9 +121,6 @@
               <label>オプション</label>
               <label class="check-label"><input type="checkbox" x-model="hasFaci"> 当日ファシリあり</label>
               <label class="check-label"><input type="checkbox" x-model="hasMatome"> 取りまとめあり</label>
-            </div>
-            <div style="display:flex; align-items:flex-end;">
-              <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
             </div>
           </div>
         </div>
@@ -477,6 +469,11 @@ function app() {
           this.$watch('overheadRate', () => this.saveDraft());
           this.$watch('discountInput', () => this.saveDraft());
           this.$watch('selectedType', () => this.saveDraft());
+          // 設定変更で自動再生成 (debounce 300ms)
+          this.$watch('pharmaTableCount', () => { if (this.selectedType === 'ws_pharma') this._scheduleRegen(); });
+          this.$watch('normalTableCount', () => { if (this.selectedType === 'ws_normal') this._scheduleRegen(); });
+          this.$watch('hasFaci',           () => { if (this.selectedType === 'ws_normal') this._scheduleRegen(); });
+          this.$watch('hasMatome',         () => { if (this.selectedType === 'ws_normal') this._scheduleRegen(); });
         })
         .withFailureHandler(err => { alert('初期化エラー: ' + err); this.loading = false; })
         .getInitialData();
@@ -534,9 +531,9 @@ function app() {
       this._buildItemsForType();
     },
 
-    regenerate() {
-      if (this.hasUserData() && !confirm('現在の入力内容を破棄して再生成しますか？')) return;
-      this._buildItemsForType();
+    _scheduleRegen() {
+      clearTimeout(this._regenTimer);
+      this._regenTimer = setTimeout(() => this._buildItemsForType(), 300);
     },
 
     _buildItemsForType() {
