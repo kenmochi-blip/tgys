@@ -133,11 +133,8 @@
           </div>
         </div>
         <div x-show="selectedType === 'graphic'">
-          <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div class="form-group" style="flex:0 0 auto;"><label>人数</label>
-              <input type="number" x-model.number="grPeople" min="1" style="width:100px;">
-            </div>
-            <button class="btn-mini-regen" @click="regenerate()">↻ 反映</button>
+          <div class="form-group" style="flex:0 0 auto;"><label>人数</label>
+            <input type="number" x-model.number="grPeople" min="1" style="width:100px;">
           </div>
         </div>
         <div x-show="selectedType === 'panel'">
@@ -215,12 +212,7 @@
       <div class="total-box">
         <div class="total-row">
           <span>人件費小計:</span>
-          <span>
-            <span x-text="laborSumDisplay.toLocaleString()"></span> 円
-            <template x-if="selectedType === 'graphic'">
-              <span x-text="' (×' + grPeople + '名)'"></span>
-            </template>
-          </span>
+          <span><span x-text="laborSumDisplay.toLocaleString()"></span> 円</span>
         </div>
         <div class="total-row">
           <span>管理費・諸経費 (<input type="number" x-model.number="overheadRate" class="rate-input">%):</span>
@@ -557,9 +549,9 @@ function app() {
       } else if (type === 'ws_normal') {
         this.generateWSNormal();
       } else if (type === 'graphic') {
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, prepHours:0, subtotal:80000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, prepHours:0, subtotal:40000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, prepHours:0, subtotal:10000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, prepHours:0, subtotal:80000, unit:'式' });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, prepHours:0, subtotal:40000, unit:'' });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, prepHours:0, subtotal:10000, unit:'' });
         this.overheadRate = 0;
       } else {
         this.generateFromTemplate();
