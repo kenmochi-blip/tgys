@@ -123,12 +123,19 @@ function getTemplateStructure_() {
   if (!sh || sh.getLastRow() < 1) return [];
   const data = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
   const result = [];
+  const seenStages = new Set();
   let stage = '';
   for (const [raw] of data) {
     const cell = String(raw).trim();
     if (!cell) continue;
-    if (cell.match(/^[\(（]\d+/)) { stage = cell; continue; }
-    if (/諸経費|小計|合計|旅費|交通費/.test(cell)) continue;
+    if (cell.match(/^[\(（]\d+/)) {
+      // 同じステージ番号が再登場したらテンプレ末尾の重複なので打ち切り
+      if (seenStages.has(cell)) break;
+      seenStages.add(cell);
+      stage = cell;
+      continue;
+    }
+    if (/諸経費|管理費|小計|合計|旅費|交通費/.test(cell)) continue;
     if (stage) result.push({ stage, role: cell });
   }
   return result;

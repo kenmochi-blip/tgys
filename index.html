@@ -211,9 +211,9 @@
           </span>
         </div>
         <div class="total-row">
-          <span>諸経費 (<input type="number" x-model.number="overheadRate" class="rate-input">%):</span>
+          <span>管理費・諸経費 (<input type="number" x-model.number="overheadRate" class="rate-input">%):</span>
           <template x-if="showOverheadNote">
-            <span style="color:red; font-size:0.8em; margin-left:10px;">値引く場合は、諸経費の％で、金額調整する（目安10～30%）　特急料金の場合は＋10%目安</span>
+            <span style="color:red; font-size:0.8em; margin-left:10px;">値引く場合は、管理費・諸経費の％で、金額調整する（目安10～30%）　特急料金の場合は＋10%目安</span>
           </template>
           <span><span x-text="overheadTotal.toLocaleString()"></span> 円</span>
         </div>
