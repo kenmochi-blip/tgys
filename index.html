@@ -34,7 +34,8 @@
     .price-cell { text-align: right; font-weight: bold; font-family: Consolas, monospace; }
     .stage-row { background-color: #e3f2fd; font-weight: bold; color: #0056b3; border-top: 2px solid #0056b3; }
     .stage-row td { padding: 12px; }
-    .hours-input { width: 90px !important; text-align: right; font-weight: bold; font-size: 1.1em; padding: 8px !important; border: 2px solid #007bff !important; border-radius: 4px; }
+    .hours-input { width: 70px !important; text-align: right; font-weight: bold; font-size: 1.1em; padding: 8px !important; border: 2px solid #007bff !important; border-radius: 4px; }
+    .prep-hours-input { width: 70px !important; text-align: right; font-weight: bold; font-size: 1.05em; padding: 8px !important; border: 2px solid #fd7e14 !important; border-radius: 4px; background:#fff8f0; }
     .price-input { width: 90px !important; text-align: right; background-color: #eee; color: #555; pointer-events: none; border: 1px solid #ccc !important; }
     .rank-select { width: 350px !important; font-size: 1em; padding: 8px; max-width: 100%; }
     .total-box { margin-top: 30px; background: #fff8e1; padding: 25px; border-radius: 8px; border: 1px solid #ffeeba; }
@@ -170,8 +171,15 @@
                     <span>@</span>
                     <input type="number" :value="item.unitPrice" class="price-input" readonly>
                     <span>×</span>
-                    <input type="number" x-model.number="item.hours" class="hours-input"><span>h</span>
-                    <span style="font-size:0.8em; color:#666; margin-left:3px;" x-text="'(' + ((item.hours||0) / 8).toFixed(2) + '人日)'"></span>
+                    <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;">h(本番)</span>
+                    <template x-if="hasPrepHours">
+                      <span style="display:inline-flex; align-items:center; gap:3px;">
+                        <span style="color:#fd7e14; font-weight:bold;">+</span>
+                        <input type="number" x-model.number="item.prepHours" class="prep-hours-input">
+                        <span style="font-size:0.8em; color:#fd7e14;">h(準備等 半額)</span>
+                      </span>
+                    </template>
+                    <span style="font-size:0.8em; color:#666; margin-left:3px;" x-text="'(' + (((item.hours||0) + (item.prepHours||0)) / 8).toFixed(2) + '人日)'"></span>
                   </div>
                 </template>
               </td>
@@ -351,9 +359,17 @@ function app() {
     _saveDraftTimer: null,
 
     get rankList() { return Object.keys(this.masters.unitPrices); },
+    get hasPrepHours() { return ['ws_normal','panel','other'].includes(this.selectedType); },
+    itemSubtotal(item) {
+      if (item.isHeader) return 0;
+      const up = Number(item.unitPrice) || 0;
+      const main = up * (Number(item.hours) || 0);
+      const prep = Math.round(up / 2) * (Number(item.prepHours) || 0);
+      return main + prep;
+    },
     get laborSum() {
       return this.cartItems.filter(i => !i.isHeader)
-        .reduce((s,i) => s + (Number(i.unitPrice)||0) * (Number(i.hours)||0), 0);
+        .reduce((s,i) => s + this.itemSubtotal(i), 0);
     },
     get laborSumDisplay() {
       return this.selectedType === 'graphic' ? this.laborSum * (this.grPeople||1) : this.laborSum;
@@ -386,11 +402,11 @@ function app() {
         let sum = 0;
         for (let j = i+1; j < this.cartItems.length; j++) {
           if (this.cartItems[j].isHeader) break;
-          sum += (Number(this.cartItems[j].unitPrice)||0) * (Number(this.cartItems[j].hours)||0);
+          sum += this.itemSubtotal(this.cartItems[j]);
         }
         return sum;
       }
-      return (Number(it.unitPrice)||0) * (Number(it.hours)||0);
+      return this.itemSubtotal(it);
     },
     showRankSelect(item) {
       return item.rankName === '' || this.masters.unitPrices[item.rankName] !== undefined;
@@ -485,7 +501,7 @@ function app() {
         if (this.cartItems[k].isHeader) { stage = this.cartItems[k].eventType; break; }
       }
       this.cartItems.splice(index + 1, 0, {
-        isHeader: false, eventType: stage, rankName: '', unitPrice: 0, hours: 0, subtotal: 0
+        isHeader: false, eventType: stage, rankName: '', unitPrice: 0, hours: 0, prepHours: 0, subtotal: 0
       });
     },
     removeItem(i) { this.cartItems.splice(i, 1); },
@@ -517,9 +533,9 @@ function app() {
       } else if (type === 'ws_normal') {
         this.generateWSNormal();
       } else if (type === 'graphic') {
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, subtotal:80000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, subtotal:40000 });
-        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, subtotal:10000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'基本料金',                 unitPrice:80000, hours:1, prepHours:0, subtotal:80000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'グラフィックレコーディング', unitPrice:20000, hours:2, prepHours:0, subtotal:40000 });
+        this.cartItems.push({ isHeader:false, eventType:'グラフィックレコーディング', rankName:'待機',                     unitPrice:10000, hours:1, prepHours:0, subtotal:10000 });
         this.overheadRate = 0;
       } else {
         this.generateFromTemplate();
@@ -547,7 +563,7 @@ function app() {
         if (role) {
           const hours = Number(row[colIndex]) || 0;
           const price = this.masters.unitPrices[role] || 0;
-          this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:role, unitPrice:price, hours:hours, subtotal:price*hours });
+          this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:role, unitPrice:price, hours:hours, prepHours:0, subtotal:price*hours });
         }
       });
     },
@@ -578,7 +594,7 @@ function app() {
         if (role) {
           const hours = Number(row[colIndex]) || 0;
           const price = this.masters.unitPrices[role] || 0;
-          this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:role, unitPrice:price, hours:hours, subtotal:price*hours });
+          this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:role, unitPrice:price, hours:hours, prepHours:0, subtotal:price*hours });
         }
       });
     },
@@ -594,7 +610,7 @@ function app() {
           this.cartItems.push({ isHeader:true, eventType:currentStage, rankName:'', unitPrice:0, hours:0, subtotal:0 });
         }
         const price = this.masters.unitPrices[item.role] || 0;
-        this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:item.role, unitPrice:price, hours:0, subtotal:0 });
+        this.cartItems.push({ isHeader:false, eventType:currentStage, rankName:item.role, unitPrice:price, hours:0, prepHours:0, subtotal:0 });
       });
     },
 
@@ -606,10 +622,11 @@ function app() {
       const items = this.cartItems.map(it => ({
         eventType: it.eventType,
         hours: it.hours,
+        prepHours: it.prepHours || 0,
         isMedical: it.isMedical || '',
         unitPrice: it.unitPrice,
         rankName: it.rankName,
-        subtotal: it.isHeader ? 0 : (Number(it.unitPrice)||0) * (Number(it.hours)||0),
+        subtotal: it.isHeader ? 0 : this.itemSubtotal(it),
         extraDesc: it.extraDesc || '',
         isHeader: !!it.isHeader
       }));

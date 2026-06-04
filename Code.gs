@@ -59,7 +59,7 @@ const SHEET_NAMES = {
 };
 
 const PROJECT_COL = { ID:1, TITLE:2, CLIENT:3, DATE:4, SOURCE:5, STATUS:6, MEMO:7, TOTAL:8, TYPE:9 };
-const DETAIL_COL  = { ID:1, PROJECT_ID:2, EVENT_TYPE:3, HOURS:4, IS_MEDICAL:5, UNIT_PRICE:6, RANK_NAME:7, SUBTOTAL:8, NOTE:9 };
+const DETAIL_COL  = { ID:1, PROJECT_ID:2, EVENT_TYPE:3, HOURS:4, IS_MEDICAL:5, UNIT_PRICE:6, RANK_NAME:7, SUBTOTAL:8, NOTE:9, PREP_HOURS:10 };
 const TRAVEL_COL  = { ID:1, PROJECT_ID:2, TYPE:3, FROM:4, TO:5, PLACE:6, PRICE_IN:7, COUNT:8, IS_ROUND_TRIP:9 };
 
 // ========================================
@@ -183,6 +183,7 @@ function getProjectDetail(projectId) {
     .map(r => ({
       eventType: r[DETAIL_COL.EVENT_TYPE - 1],
       hours: r[DETAIL_COL.HOURS - 1],
+      prepHours: Number(r[DETAIL_COL.PREP_HOURS - 1]) || 0,
       isMedical: r[DETAIL_COL.IS_MEDICAL - 1],
       unitPrice: r[DETAIL_COL.UNIT_PRICE - 1],
       rankName: r[DETAIL_COL.RANK_NAME - 1],
@@ -302,10 +303,11 @@ function saveDataToSheet(formData) {
         'DET_' + Math.random().toString(36).slice(-8),
         projectId, it.eventType, it.hours, it.isMedical,
         it.unitPrice, it.rankName, it.subtotal,
-        it.isHeader ? 'IS_HEADER' : (it.extraDesc || '')
+        it.isHeader ? 'IS_HEADER' : (it.extraDesc || ''),
+        it.prepHours || 0
       ]);
       const startRow = dSh.getLastRow() + 1;
-      dSh.getRange(startRow, 1, rows.length, 9).setValues(rows);
+      dSh.getRange(startRow, 1, rows.length, 10).setValues(rows);
     }
 
     // 旅費明細を一括書き込み
@@ -382,7 +384,9 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   const itemMap = {};
   data.items.forEach(it => {
     if (it.isHeader) return;
-    const obj = { hours: it.hours, price: it.unitPrice };
+    // 本番時間 + (準備等時間 ÷ 2) = テンプレに書き込む実効時間 (準備等は半額のため)
+    const effectiveHours = (Number(it.hours) || 0) + (Number(it.prepHours) || 0) / 2;
+    const obj = { hours: effectiveHours, price: it.unitPrice };
     itemMap[normalizeKey_(it.eventType + '_' + it.rankName)] = obj;
     itemMap[normalizeKey_(it.rankName)] = obj;
   });
