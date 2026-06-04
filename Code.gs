@@ -388,6 +388,13 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   const colC = sheet.getRange(1, 3, lastRow, 1).getValues();
   const colD = sheet.getRange(1, 4, lastRow, 1).getValues();
   const colE = sheet.getRange(1, 5, lastRow, 1).getValues();
+  // テンプレ既存の数式を保持するため formulas も読む
+  const colBFormulas = sheet.getRange(1, 2, lastRow, 1).getFormulas();
+  const colDFormulas = sheet.getRange(1, 4, lastRow, 1).getFormulas();
+  const colEFormulas = sheet.getRange(1, 5, lastRow, 1).getFormulas();
+  const modB = new Array(lastRow).fill(false);
+  const modD = new Array(lastRow).fill(false);
+  const modE = new Array(lastRow).fill(false);
 
   const masterPrices = getUnitPriceMaster_();
   const itemMap = {};
@@ -412,23 +419,26 @@ function updateSpreadsheetTemplate_(data, dateStr) {
 
     // グラレコ専用
     if (data.selectedType === 'graphic') {
-      if (cellA === 'グラフィックレコーディング' && (!colD[i][0] || colD[i][0] === '')) { colB[i][0] = people; continue; }
-      if (cellA === '基本料金') { colB[i][0] = people; colD[i][0] = 80000; continue; }
-      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') { colB[i][0] = 2 * people; colD[i][0] = 20000; continue; }
-      if (cellA === '待機') { colB[i][0] = people; colD[i][0] = 10000; continue; }
+      if (cellA === 'グラフィックレコーディング' && (!colD[i][0] || colD[i][0] === '')) { colB[i][0] = people; modB[i]=true; continue; }
+      if (cellA === '基本料金') { colB[i][0] = people; colD[i][0] = 80000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') { colB[i][0] = 2 * people; colD[i][0] = 20000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === '待機') { colB[i][0] = people; colD[i][0] = 10000; modB[i]=true; modD[i]=true; continue; }
     }
 
     if (cellA.indexOf('諸経費') > -1) {
       colD[i][0] = (parseFloat(data.overheadRate) || 30) / 100;
+      modD[i] = true;
       continue;
     }
     if (cellA.indexOf('旅費') > -1 || cellA.indexOf('交通費') > -1) {
       if (travelTotal > 0) { colB[i][0] = 1; colE[i][0] = travelTotal; }
       else { colB[i][0] = ''; colE[i][0] = ''; }
+      modB[i] = true; modE[i] = true;
       continue;
     }
     if (cellA.indexOf('出精値引き') > -1 && data.discountAmount > 0) {
       colE[i][0] = -data.discountAmount;
+      modE[i] = true;
       continue;
     }
     if (cellA.match(/^[\(（]\d+/)) { stage = cellA; continue; }
@@ -439,20 +449,26 @@ function updateSpreadsheetTemplate_(data, dateStr) {
       if (itemMap[mapKey]) {
         colB[i][0] = itemMap[mapKey].hours;
         colD[i][0] = itemMap[mapKey].price;
+        modB[i]=true; modD[i]=true;
       } else if (itemMap[onlyRoleKey] && !stage) {
         colB[i][0] = itemMap[onlyRoleKey].hours;
         colD[i][0] = itemMap[onlyRoleKey].price;
+        modB[i]=true; modD[i]=true;
       } else if (masterPrices[cellA]) {
         colD[i][0] = masterPrices[cellA];
         colB[i][0] = '';
+        modB[i]=true; modD[i]=true;
       }
     }
   }
 
-  // 一括書き戻し (高速)
-  sheet.getRange(1, 2, lastRow, 1).setValues(colB);
-  sheet.getRange(1, 4, lastRow, 1).setValues(colD);
-  sheet.getRange(1, 5, lastRow, 1).setValues(colE);
+  // 一括書き戻し: 修正していないセルは元の数式を保持
+  const finalB = colB.map((row, i) => modB[i] ? row : (colBFormulas[i][0] ? [colBFormulas[i][0]] : row));
+  const finalD = colD.map((row, i) => modD[i] ? row : (colDFormulas[i][0] ? [colDFormulas[i][0]] : row));
+  const finalE = colE.map((row, i) => modE[i] ? row : (colEFormulas[i][0] ? [colEFormulas[i][0]] : row));
+  sheet.getRange(1, 2, lastRow, 1).setValues(finalB);
+  sheet.getRange(1, 4, lastRow, 1).setValues(finalD);
+  sheet.getRange(1, 5, lastRow, 1).setValues(finalE);
 
   // 旅費明細 (H6〜M)
   sheet.getRange('H6:M').clearContent();
