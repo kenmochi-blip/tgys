@@ -123,15 +123,17 @@ function getTemplateStructure_() {
   if (!sh || sh.getLastRow() < 1) return [];
   const data = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
   const result = [];
-  const seenStages = new Set();
+  const seenStageNums = new Set();
   let stage = '';
   for (const [raw] of data) {
     const cell = String(raw).trim();
     if (!cell) continue;
-    if (cell.match(/^[\(（]\d+/)) {
-      // 同じステージ番号が再登場したらテンプレ末尾の重複なので打ち切り
-      if (seenStages.has(cell)) break;
-      seenStages.add(cell);
+    const stageMatch = cell.match(/^[\(（](\d+)/);
+    if (stageMatch) {
+      const num = stageMatch[1];
+      // 同じステージ番号が再登場したら以降は重複なので打ち切り
+      if (seenStageNums.has(num)) break;
+      seenStageNums.add(num);
       stage = cell;
       continue;
     }

@@ -175,8 +175,8 @@
                       <input type="number" x-model.number="item.hours" class="hours-input"><span style="font-size:0.85em;">h(本番)</span>
                     </div>
                     <template x-if="showPrepFor(item)">
-                      <div class="row-content" style="margin-top:6px; padding-left:30px;">
-                        <span style="color:#fd7e14; font-size:0.85em; font-weight:bold; width:300px; padding-left:8px;">準備・片付け・待機・移動</span>
+                      <div class="row-content" style="margin-top:6px;">
+                        <span style="color:#fd7e14; font-size:0.85em; font-weight:bold; width:350px; max-width:100%; display:inline-block; padding:8px; box-sizing:border-box;">準備・片付け・待機・移動</span>
                         <span>@</span>
                         <input type="number" :value="Math.round((item.unitPrice||0)/2)" class="price-input" readonly style="background:#fff3e0; color:#fd7e14;">
                         <span>×</span>
@@ -187,13 +187,15 @@
                 </template>
               </td>
               <td class="price-cell">
-                <template x-if="!item.isHeader">
-                  <div style="font-size:0.75em; color:#666; font-weight:normal; font-family:inherit;" x-text="rowTimeDisplay(item)"></div>
-                </template>
-                <template x-if="item.isHeader">
-                  <div style="font-size:0.75em; color:#0056b3; font-weight:normal; font-family:inherit;" x-text="stageTimeDisplay(i)"></div>
-                </template>
-                <div x-text="stageOrItemSubtotal(i).toLocaleString()"></div>
+                <div style="display:flex; justify-content:flex-end; align-items:baseline; gap:12px;">
+                  <template x-if="!item.isHeader">
+                    <span style="font-size:0.9em; color:#666; font-weight:normal; font-family:inherit;" x-text="rowTimeDisplay(item)"></span>
+                  </template>
+                  <template x-if="item.isHeader">
+                    <span style="font-size:0.9em; color:#0056b3; font-weight:normal; font-family:inherit;" x-text="stageTimeDisplay(i)"></span>
+                  </template>
+                  <span x-text="stageOrItemSubtotal(i).toLocaleString()"></span>
+                </div>
               </td>
             </tr>
           </template>
