@@ -3,7 +3,7 @@
 // ========================================
 // ★現行スプレッドシート (顧客リスト・マスタ・案件管理 等が入っている正本) のID
 // スプレッドシートURL: https://docs.google.com/spreadsheets/d/【ここがID】/edit
-const MAIN_SS_ID = 'ここに現行スプレッドシートのIDを貼る';
+const MAIN_SS_ID = '1_guv8ou75mJ1SceBymgOYS9bUGztirx_7PARcXsk8mM';
 
 const TEMPLATE_SS_ID = '1_guv8ou75mJ1SceBymgOYS9bUGztirx_7PARcXsk8mM';
 const DESTINATION_FOLDER_ID = '11oyvYyiWDIz5ogII2i-abbw1gJtKDHTJ';
@@ -18,6 +18,33 @@ function getMainSS_() {
     throw new Error('スプレッドシートに紐付いていません。Code.gs の MAIN_SS_ID に現行スプレッドシートのIDを設定してください。');
   }
   return active;
+}
+
+// ★診断用: GASエディタの関数一覧から手動実行してください
+// 各シートが存在するかチェックします
+function runDiagnostic() {
+  const ss = getMainSS_();
+  console.log('SS名:', ss.getName());
+  console.log('SS URL:', ss.getUrl());
+  console.log('---');
+  const required = Object.values(SHEET_NAMES);
+  required.forEach(name => {
+    const sh = ss.getSheetByName(name);
+    if (sh) {
+      console.log('✅ ' + name + ' (' + sh.getLastRow() + '行)');
+    } else {
+      console.log('❌ ' + name + ' が見つかりません');
+    }
+  });
+  console.log('---');
+  console.log('テンプレSS:');
+  try {
+    const tpl = SpreadsheetApp.openById(TEMPLATE_SS_ID);
+    console.log('✅ テンプレSS開けました: ' + tpl.getName());
+    console.log('  シート一覧: ' + tpl.getSheets().map(s => s.getName()).join(', '));
+  } catch (e) {
+    console.log('❌ テンプレSS開けません: ' + e);
+  }
 }
 
 const SHEET_NAMES = {
