@@ -371,6 +371,7 @@ function saveDataToSheet(formData) {
     return {
       success: true,
       url: result.url,
+      pdfUrl: result.pdfUrl,
       projectId: projectId,
       sheetTotal: result.sheetTotal,
       message: isUpdate ? '上書き保存しました！' : '新規保存しました！'
@@ -412,13 +413,31 @@ function updateSpreadsheetTemplate_(data, dateStr) {
 
   let sheet = newSs.getSheetByName(targetName);
   if (!sheet) throw new Error('テンプレートに「' + targetName + '」シートが見つかりません');
+
+  // タイプ別の印刷範囲 (リネーム前の元シート名で判定)
+  const printRanges = {
+    '内訳明細': 'A1:F47',
+    '内訳明細グラレコのみ': 'A1:F21',
+    '内訳明細イラストのみ': 'A1:F45'
+  };
+  const printRange = printRanges[targetName] || 'A1:F50';
+
   if (sheet.getName() !== '内訳明細') sheet.setName('内訳明細');
+
+  // PDF出力用URL (A4縦・印刷範囲指定済み・現在のシート状態で出力)
+  const sheetGid = sheet.getSheetId();
+  const pdfUrl = 'https://docs.google.com/spreadsheets/d/' + copied.id +
+    '/export?format=pdf&size=a4&portrait=true&fitw=true&gridlines=false&printtitle=false&sheetnames=false&pagenum=false' +
+    '&gid=' + sheetGid + '&range=' + printRange;
 
   if (targetName === '内訳明細') {
     sheet.getRange('A3').setValue(data.clientName + ' 御中');
     sheet.getRange('A5').setValue('件名: ' + data.projectTitle);
   }
   sheet.getRange('F1').setValue(dateStr);
+  // 印刷範囲外 (G1) にPDFリンクを設置 (印刷時は出ない)
+  sheet.getRange('G1').setFormula('=HYPERLINK("' + pdfUrl + '","📄 印刷用PDFを開く")')
+    .setFontWeight('bold').setFontColor('#1a73e8').setFontSize(11);
 
   // メインテーブル: A:E を一括読み込み (5回 → 2回のRPCに圧縮)
   const lastRow = sheet.getLastRow();
@@ -554,7 +573,7 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     console.warn('setSharing skipped (domain policy): ' + e);
   }
   // SpreadsheetApp.flush()と sheetTotal読み取りは省略 (体感速度優先)
-  return { url: 'https://docs.google.com/spreadsheets/d/' + copied.id + '/edit', sheetTotal: 0 };
+  return { url: 'https://docs.google.com/spreadsheets/d/' + copied.id + '/edit', pdfUrl: pdfUrl, sheetTotal: 0 };
 }
 
 function authorizeDrive() {

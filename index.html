@@ -290,8 +290,11 @@
               ※スプレッドシートを確認してください
             </div>
           </template>
-          <div style="margin-top:10px;">
+          <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
             <a :href="saveResult.url" target="_blank" style="background:#217346; color:white; padding:10px 20px; text-decoration:none; display:inline-block; border-radius:6px; font-weight:bold;">📊 作成された見積書(Sheet)を開く</a>
+            <template x-if="saveResult.pdfUrl">
+              <a :href="saveResult.pdfUrl" target="_blank" style="background:#d9534f; color:white; padding:10px 20px; text-decoration:none; display:inline-block; border-radius:6px; font-weight:bold;">📄 PDF出力 (印刷範囲指定済)</a>
+            </template>
           </div>
         </div>
       </template>
