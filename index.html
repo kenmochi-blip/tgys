@@ -15,7 +15,9 @@
     input[type=number].no-spin::-webkit-inner-spin-button, input[type=number].no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number].no-spin { -moz-appearance:textfield; }
     .type-selector { display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: nowrap; }
-    .type-card { flex: 1 1 0; border: 2px solid #e0e0e0; border-radius: 6px; padding: 10px 4px; text-align: center; cursor: pointer; background: #fff; transition: 0.2s; font-weight: bold; color: #555; min-width: 0; font-size: 0.95em; line-height: 1.3; display: flex; align-items: center; justify-content: center; min-height: 56px; }
+    .type-card { flex: 1 1 0; border: 2px solid #e0e0e0; border-radius: 6px; padding: 10px 4px; text-align: center; cursor: pointer; background: #fff; transition: 0.2s; font-weight: bold; color: #555; min-width: 0; font-size: 0.95em; line-height: 1.3; display: flex; align-items: center; justify-content: center; min-height: 70px; }
+    .type-sub { font-size: 0.7em; opacity: 0.75; font-weight: normal; }
+    .type-card.active .type-sub { opacity: 0.9; }
     .type-card:hover { border-color: #0056b3; background: #f0f8ff; }
     .type-card.active { border-color: #0056b3; background: #0056b3; color: white; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     .vars-section { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px; }
@@ -335,12 +337,12 @@ function app() {
   return {
     masters: { clients: [], unitPrices: {}, pharma: [], wsNormal: [], panel: [], templateStructure: [] },
     types: [
-      { value: 'ws_pharma',  label: 'ワークショップ<br>(製薬)' },
+      { value: 'ws_pharma',  label: 'ワークショップ<br>(製薬)<br><span class="type-sub">東武/JTBなど</span>' },
       { value: 'ws_normal',  label: 'ワークショップ<br>(製薬以外)' },
-      { value: 'graphic',    label: 'グラフィック<br>レコーディング' },
+      { value: 'graphic',    label: 'グラフィック<br>レコーディング<br><span class="type-sub">インテージ/カンターなど</span>' },
       { value: 'panel',      label: 'パネル<br>ディスカッション' },
       { value: 'project',    label: 'イラストのみ' },
-      { value: 'other',      label: 'プロジェクト<br>その他' }
+      { value: 'other',      label: '標準ひな形<br><span class="type-sub">プロジェクト・その他</span>' }
     ],
     loading: true,
     saving: false,
