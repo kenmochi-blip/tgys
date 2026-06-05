@@ -398,7 +398,7 @@ function normalizeKey_(str) {
 function updateSpreadsheetTemplate_(data, dateStr) {
   const d = new Date();
   const safeDate = d.getFullYear() + ('0'+(d.getMonth()+1)).slice(-2) + ('0'+d.getDate()).slice(-2);
-  const fileName = data.clientName + '様_' + data.projectTitle + '_' + safeDate;
+  const fileName = '【見積内訳】' + data.clientName + '様_' + data.projectTitle + '_' + safeDate;
 
   const copied = Drive.Files.copy({ title: fileName, parents: [{id: DESTINATION_FOLDER_ID}] }, TEMPLATE_SS_ID);
   const newSs = SpreadsheetApp.openById(copied.id);

@@ -227,7 +227,7 @@
                   <input type="text" placeholder="到着" x-model="t.to" class="station-input">
                   <button class="travel-btn" @click="searchRoute(i)">🔍</button>
                   <span>片道税込:</span><input type="number" x-model.number="t.priceIn" class="travel-input no-spin" style="width:70px;">
-                  <span>×</span> <input type="number" x-model.number="t.count" class="travel-input" style="width:40px;"><span>名</span>
+                  <span>×</span> <input type="number" x-model.number="t.count" class="travel-input" style="width:40px;"><span>名・回</span>
                   <label style="margin-left:5px; font-weight:normal; font-size:0.9em;">
                     <input type="checkbox" x-model="t.isRoundTrip">往復
                   </label>
@@ -589,8 +589,8 @@ function app() {
     searchRoute(i) {
       const t = this.travelItems[i];
       if (!t.from || !t.to) { alert('出発地と到着地を入力してください'); return; }
-      const q = 'eki1=' + encodeURIComponent(t.from) + '&eki2=' + encodeURIComponent(t.to) + '&Csg=1&rf=nr&S=S';
-      window.open('https://www.jorudan.co.jp/norikae/cgi/nori.cgi?' + q, 'jorudan_transit', 'width=800,height=800');
+      const q = 'from=' + encodeURIComponent(t.from) + '&to=' + encodeURIComponent(t.to);
+      window.open('https://transit.yahoo.co.jp/search/result?' + q, 'yahoo_transit', 'width=900,height=900');
     },
 
     processMasterData(data, colIndex) {
