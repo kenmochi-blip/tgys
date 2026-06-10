@@ -474,16 +474,16 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     if (cellA === '合計') totalRowIndex = i + 1;
     if (!cellA) continue;
 
-    // グラレコ専用
+    // グラレコ専用 (B7=人数, D7=1人分小計式, E7=B7*D7。B9〜B11 は1人分の値)
     if (data.selectedType === 'graphic') {
       const findHrs = (name, fallback) => {
         const it = data.items.find(x => !x.isHeader && x.rankName === name);
         return it ? (Number(it.hours) || 0) : fallback;
       };
       if (cellA === 'グラフィックレコーディング' && (!colD[i][0] || colD[i][0] === '')) { colB[i][0] = people; modB[i]=true; continue; }
-      if (cellA === '基本料金') { colB[i][0] = findHrs('基本料金', 1) * people; colD[i][0] = 80000; modB[i]=true; modD[i]=true; continue; }
-      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') { colB[i][0] = findHrs('グラフィックレコーディング', 2) * people; colD[i][0] = 20000; modB[i]=true; modD[i]=true; continue; }
-      if (cellA === '待機') { colB[i][0] = findHrs('待機', 1) * people; colD[i][0] = 10000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === '基本料金') { colB[i][0] = findHrs('基本料金', 1); colD[i][0] = 80000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') { colB[i][0] = findHrs('グラフィックレコーディング', 2); colD[i][0] = 20000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === '待機') { colB[i][0] = findHrs('待機', 1); colD[i][0] = 10000; modB[i]=true; modD[i]=true; continue; }
     }
 
     if (cellA.indexOf('諸経費') > -1) {
