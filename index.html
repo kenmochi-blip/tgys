@@ -534,7 +534,7 @@ function app() {
       if (type === this.selectedType) return;
       if (this.userTouched && !confirm('入力内容を破棄してタイプを切り替えますか？')) return;
       this.selectedType = type;
-      this.overheadRate = (type === 'graphic') ? 0 : 30;
+      this.overheadRate = (type === 'graphic') ? 0 : (type === 'project') ? 40 : 30;
       this._buildItemsForType();
     },
 
