@@ -38,7 +38,8 @@
     .stage-row td { padding: 12px; }
     .hours-input { width: 70px !important; text-align: right; font-weight: bold; font-size: 1.1em; padding: 8px !important; border: 2px solid #007bff !important; border-radius: 4px; }
     .prep-hours-input { width: 70px !important; text-align: right; font-weight: bold; font-size: 1.05em; padding: 8px !important; border: 2px solid #fd7e14 !important; border-radius: 4px; background:#fff8f0; }
-    .price-input { width: 90px !important; text-align: right; background-color: #eee; color: #555; pointer-events: none; border: 1px solid #ccc !important; }
+    .price-input { width: 90px !important; text-align: right; background-color: #fff; color: #333; border: 1px solid #ccc !important; }
+    .price-input[readonly] { background-color: #eee; color: #555; pointer-events: none; }
     .rank-select { width: 350px !important; font-size: 1em; padding: 8px; max-width: 100%; }
     .total-box { margin-top: 30px; background: #fff8e1; padding: 25px; border-radius: 8px; border: 1px solid #ffeeba; }
     .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 1.1em; }
@@ -174,7 +175,7 @@
                         <input type="text" :value="item.rankName" class="rank-select" readonly style="background:#eee; color:#333;">
                       </template>
                       <span>@</span>
-                      <input type="number" :value="item.unitPrice" class="price-input" readonly>
+                      <input type="number" x-model.number="item.unitPrice" @input="userTouched = true" class="price-input">
                       <span>×</span>
                       <input type="number" x-model.number="item.hours" @input="userTouched = true" class="hours-input"><span style="font-size:0.85em;" x-text="unitLabel(item)"></span>
                     </div>
@@ -260,6 +261,27 @@
         <div class="total-row" style="margin-top:10px; border-top:1px solid #ccc; padding-top:5px;">
           <span>旅費交通費 合計 (税抜):</span><span><span x-text="travelTotal.toLocaleString()"></span> 円</span>
         </div>
+
+        <div x-show="selectedType === 'project'" style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+          <div style="font-weight:bold; margin-bottom:5px; color:#6f42c1;">外注費 詳細</div>
+          <template x-for="(o, i) in outsourceItems" :key="i">
+            <div class="travel-row" style="background:#f6f0fc; border-color:#e0d4f0;">
+              <span style="font-weight:bold; color:#6f42c1; width:60px;">[外注]</span>
+              <input type="text" placeholder="外注先" x-model="o.vendor" class="travel-input" style="width:180px;">
+              <span>金額(税抜):</span><input type="number" x-model.number="o.amount" class="travel-input no-spin" style="width:90px;">
+              <span>MU:</span><input type="number" x-model.number="o.markup" class="travel-input no-spin" style="width:55px;"><span>%</span>
+              <span style="margin-left:5px;">→ 請求: <b x-text="outsourceLineTotal(o).toLocaleString()"></b> 円</span>
+              <button class="del-btn" @click="removeOutsource(i)" style="margin-left:auto;">×</button>
+            </div>
+          </template>
+          <div style="margin-top:10px;">
+            <button @click="addOutsource()" style="font-size:0.8em; background:#fff; border:1px solid #6f42c1; color:#6f42c1; padding:5px 10px; cursor:pointer; border-radius:4px;">＋ 外注先を追加</button>
+          </div>
+        </div>
+        <div class="total-row" x-show="selectedType === 'project'" style="margin-top:10px; border-top:1px solid #ccc; padding-top:5px;">
+          <span>外注費 合計 (税抜):</span><span><span x-text="outsourceTotal.toLocaleString()"></span> 円</span>
+        </div>
+
         <div class="total-row" style="color:#d9534f; margin-top:10px;">
           <span>出精値引き:</span>
           <div style="display:inline-flex; align-items:center;">
@@ -342,12 +364,12 @@ function app() {
   return {
     masters: { clients: [], unitPrices: {}, pharma: [], wsNormal: [], panel: [], templateStructure: [] },
     types: [
-      { value: 'ws_pharma',  label: 'ワークショップ<br>(製薬)<br><span class="type-sub">東武/JTBなど</span>' },
-      { value: 'ws_normal',  label: 'ワークショップ<br>(製薬以外)' },
+      { value: 'other',      label: '標準ひな形<br><span class="type-sub">プロジェクト・その他</span>' },
       { value: 'graphic',    label: 'グラフィック<br>レコーディング<br><span class="type-sub">インテージ/カンターなど</span>' },
+      { value: 'ws_pharma',  label: 'ワークショップ<br>グループディスカッション<br>（医療系）<br><span class="type-sub">東武/JTBなど</span>' },
+      { value: 'ws_normal',  label: 'ワークショップ<br>グループディスカッション<br>（その他）<br><span class="type-sub">民間/大学など</span>' },
       { value: 'panel',      label: 'パネル<br>ディスカッション' },
-      { value: 'project',    label: 'イラストのみ' },
-      { value: 'other',      label: '標準ひな形<br><span class="type-sub">プロジェクト・その他</span>' }
+      { value: 'project',    label: 'イラスト/<br>冊子/動画制作' }
     ],
     loading: true,
     saving: false,
@@ -367,6 +389,7 @@ function app() {
     discountInput: 0,
     cartItems: [],
     travelItems: [],
+    outsourceItems: [],
     historyOpen: false,
     historyList: [],
     filterType: '',
@@ -422,7 +445,16 @@ function app() {
     get overheadTotal() { return Math.floor(this.laborSumDisplay * (this.overheadRate||0) / 100); },
     get subTotalA() { return this.laborSumDisplay + this.overheadTotal; },
     get travelTotal() { return this.travelItems.reduce((s,t) => s + this.travelLineExTax(t), 0); },
-    get taxableBase() { return Math.max(0, this.subTotalA + this.travelTotal - (this.discountInput||0)); },
+    outsourceLineTotal(o) {
+      const a = Number(o.amount) || 0;
+      const m = Number(o.markup) || 0;
+      return Math.round(a * (1 + m / 100));
+    },
+    get outsourceTotal() {
+      if (this.selectedType !== 'project') return 0;
+      return this.outsourceItems.reduce((s,o) => s + this.outsourceLineTotal(o), 0);
+    },
+    get taxableBase() { return Math.max(0, this.subTotalA + this.travelTotal + this.outsourceTotal - (this.discountInput||0)); },
     get taxTotal() { return Math.floor(this.taxableBase * 0.1); },
     get grandTotal() { return this.taxableBase + this.taxTotal; },
     get showOverheadNote() { return !['ws_pharma','graphic'].includes(this.selectedType); },
@@ -475,6 +507,7 @@ function app() {
           }
           this.$watch('cartItems', () => this.saveDraft(), { deep: true });
           this.$watch('travelItems', () => this.saveDraft(), { deep: true });
+          this.$watch('outsourceItems', () => this.saveDraft(), { deep: true });
           this.$watch('clientName', () => this.saveDraft());
           this.$watch('projectTitle', () => this.saveDraft());
           this.$watch('overheadRate', () => this.saveDraft());
@@ -498,7 +531,7 @@ function app() {
             clientName: this.clientName, projectTitle: this.projectTitle,
             selectedType: this.selectedType, overheadRate: this.overheadRate,
             discountInput: this.discountInput, grPeople: this.grPeople,
-            cartItems: this.cartItems, travelItems: this.travelItems,
+            cartItems: this.cartItems, travelItems: this.travelItems, outsourceItems: this.outsourceItems,
             currentProjectId: this.currentProjectId, ts: Date.now()
           }));
         } catch (e) { console.warn('autosave failed', e); }
@@ -524,6 +557,7 @@ function app() {
         this.grPeople = d.grPeople || 1;
         this.cartItems = d.cartItems || [];
         this.travelItems = d.travelItems || [];
+        this.outsourceItems = d.outsourceItems || [];
         this.currentProjectId = d.currentProjectId || '';
         this.draftRestored = true;
         return true;
@@ -592,6 +626,11 @@ function app() {
       }
     },
     removeTravelRow(i) { this.travelItems.splice(i, 1); },
+
+    addOutsource() {
+      this.outsourceItems.push({ vendor: '', amount: 0, markup: 20 });
+    },
+    removeOutsource(i) { this.outsourceItems.splice(i, 1); },
 
     searchRoute(i) {
       const t = this.travelItems[i];
@@ -721,6 +760,8 @@ function app() {
         overheadRate: this.overheadRate,
         travelTotal: this.travelTotal,
         travelDetails: this.travelItems,
+        outsourceTotal: this.outsourceTotal,
+        outsourceDetails: this.outsourceItems,
         grPeople: this.grPeople,
         projectId: this.currentProjectId,
         selectedType: this.selectedType
@@ -755,6 +796,7 @@ function app() {
       this.hasMatome = false;
       this.cartItems = [];
       this.travelItems = [];
+      this.outsourceItems = [];
       this.saveResult = null;
       this.draftRestored = false;
       localStorage.removeItem('mitsumori_draft_v4');
@@ -776,6 +818,7 @@ function app() {
         this.selectedType = data.projectType || 'ws_pharma';
         this.cartItems = data.items || [];
         this.travelItems = data.travelDetails || [];
+        this.outsourceItems = data.outsourceDetails || [];
         this.saveResult = null;
         this.userTouched = false;
         this.historyOpen = false;

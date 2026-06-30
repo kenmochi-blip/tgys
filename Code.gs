@@ -55,12 +55,14 @@ const SHEET_NAMES = {
   PANEL: 'マスタ_工数_パネル',
   PROJECT: '案件管理',
   DETAIL: '見積明細',
-  TRAVEL: '旅費明細'
+  TRAVEL: '旅費明細',
+  OUTSOURCE: '外注明細'
 };
 
 const PROJECT_COL = { ID:1, TITLE:2, CLIENT:3, DATE:4, SOURCE:5, STATUS:6, MEMO:7, TOTAL:8, TYPE:9 };
 const DETAIL_COL  = { ID:1, PROJECT_ID:2, EVENT_TYPE:3, HOURS:4, IS_MEDICAL:5, UNIT_PRICE:6, RANK_NAME:7, SUBTOTAL:8, NOTE:9, PREP_HOURS:10 };
 const TRAVEL_COL  = { ID:1, PROJECT_ID:2, TYPE:3, FROM:4, TO:5, PLACE:6, PRICE_IN:7, COUNT:8, IS_ROUND_TRIP:9 };
+const OUTSOURCE_COL = { ID:1, PROJECT_ID:2, VENDOR:3, AMOUNT:4, MARKUP:5 };
 
 // ========================================
 // エントリーポイント
@@ -256,6 +258,20 @@ function getProjectDetail(projectId) {
     });
   }
 
+  const oSh = ensureOutsourceSheet_();
+  const outsourceDetails = [];
+  if (oSh.getLastRow() > 1) {
+    const oData = oSh.getRange(2, 1, oSh.getLastRow() - 1, 5).getValues();
+    oData.forEach(r => {
+      if (r[OUTSOURCE_COL.PROJECT_ID - 1] !== projectId) return;
+      outsourceDetails.push({
+        vendor: r[OUTSOURCE_COL.VENDOR - 1] || '',
+        amount: Number(r[OUTSOURCE_COL.AMOUNT - 1]) || 0,
+        markup: Number(r[OUTSOURCE_COL.MARKUP - 1]) || 0
+      });
+    });
+  }
+
   return {
     clientName: projectRow[PROJECT_COL.CLIENT - 1],
     projectTitle: projectRow[PROJECT_COL.TITLE - 1],
@@ -263,7 +279,8 @@ function getProjectDetail(projectId) {
     overheadRate: overheadRate,
     projectType: savedType,
     items: items,
-    travelDetails: travelDetails
+    travelDetails: travelDetails,
+    outsourceDetails: outsourceDetails
   };
 }
 
@@ -275,6 +292,7 @@ function deleteProject(projectId) {
     deleteRowsByMatch_(ss.getSheetByName(SHEET_NAMES.PROJECT), PROJECT_COL.ID, projectId);
     deleteRowsByMatch_(ss.getSheetByName(SHEET_NAMES.DETAIL), DETAIL_COL.PROJECT_ID, projectId);
     deleteRowsByMatch_(ensureTravelSheet_(), TRAVEL_COL.PROJECT_ID, projectId);
+    deleteRowsByMatch_(ensureOutsourceSheet_(), OUTSOURCE_COL.PROJECT_ID, projectId);
     return { success: true };
   } finally {
     lock.releaseLock();
@@ -304,6 +322,17 @@ function ensureTravelSheet_() {
   return sh;
 }
 
+function ensureOutsourceSheet_() {
+  const ss = getMainSS_();
+  let sh = ss.getSheetByName(SHEET_NAMES.OUTSOURCE);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_NAMES.OUTSOURCE);
+    sh.getRange(1, 1, 1, 5).setValues([['outsourceId','projectId','vendor','amount','markup']]);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
 // ========================================
 // 保存
 // ========================================
@@ -317,6 +346,7 @@ function saveDataToSheet(formData) {
     const pSh = ss.getSheetByName(SHEET_NAMES.PROJECT);
     const dSh = ss.getSheetByName(SHEET_NAMES.DETAIL);
     const tSh = ensureTravelSheet_();
+    const oSh = ensureOutsourceSheet_();
     const dateStr = new Date().toLocaleDateString();
     const travelTotal = parseInt(formData.travelTotal) || 0;
     const memoStr = '値引:' + formData.discountAmount + ', 諸経費:' + formData.overheadRate + '%, 旅費:' + travelTotal;
@@ -334,6 +364,7 @@ function saveDataToSheet(formData) {
         pSh.getRange(idx + 1, 1, 1, row.length).setValues([row]);
         deleteRowsByMatch_(dSh, DETAIL_COL.PROJECT_ID, projectId);
         deleteRowsByMatch_(tSh, TRAVEL_COL.PROJECT_ID, projectId);
+        deleteRowsByMatch_(oSh, OUTSOURCE_COL.PROJECT_ID, projectId);
       }
     }
     if (!projectId || !isUpdate) {
@@ -364,6 +395,16 @@ function saveDataToSheet(formData) {
       ]);
       const startRow = tSh.getLastRow() + 1;
       tSh.getRange(startRow, 1, rows.length, 9).setValues(rows);
+    }
+
+    // 外注明細の保存
+    if (formData.outsourceDetails && formData.outsourceDetails.length > 0) {
+      const rows = formData.outsourceDetails.map(o => [
+        'OUT_' + Math.random().toString(36).slice(-8),
+        projectId, o.vendor || '', Number(o.amount) || 0, Number(o.markup) || 0
+      ]);
+      const startRow = oSh.getLastRow() + 1;
+      oSh.getRange(startRow, 1, rows.length, 5).setValues(rows);
     }
 
     const result = updateSpreadsheetTemplate_(formData, dateStr);
@@ -476,14 +517,26 @@ function updateSpreadsheetTemplate_(data, dateStr) {
 
     // グラレコ専用 (B7=人数, D7=1人分小計式, E7=B7*D7。B9〜B11 は1人分の値)
     if (data.selectedType === 'graphic') {
-      const findHrs = (name, fallback) => {
-        const it = data.items.find(x => !x.isHeader && x.rankName === name);
-        return it ? (Number(it.hours) || 0) : fallback;
-      };
+      const findItem = (name) => data.items.find(x => !x.isHeader && x.rankName === name);
       if (cellA === 'グラフィックレコーディング' && (!colD[i][0] || colD[i][0] === '')) { colB[i][0] = people; modB[i]=true; continue; }
-      if (cellA === '基本料金') { colB[i][0] = findHrs('基本料金', 1); colD[i][0] = 80000; modB[i]=true; modD[i]=true; continue; }
-      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') { colB[i][0] = findHrs('グラフィックレコーディング', 2); colD[i][0] = 20000; modB[i]=true; modD[i]=true; continue; }
-      if (cellA === '待機') { colB[i][0] = findHrs('待機', 1); colD[i][0] = 10000; modB[i]=true; modD[i]=true; continue; }
+      if (cellA === '基本料金') {
+        const it = findItem('基本料金');
+        colB[i][0] = it ? (Number(it.hours)||1) : 1;
+        colD[i][0] = it ? (Number(it.unitPrice)||80000) : 80000;
+        modB[i]=true; modD[i]=true; continue;
+      }
+      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') {
+        const it = findItem('グラフィックレコーディング');
+        colB[i][0] = it ? (Number(it.hours)||2) : 2;
+        colD[i][0] = it ? (Number(it.unitPrice)||20000) : 20000;
+        modB[i]=true; modD[i]=true; continue;
+      }
+      if (cellA === '待機') {
+        const it = findItem('待機');
+        colB[i][0] = it ? (Number(it.hours)||0) : 0;
+        colD[i][0] = it ? (Number(it.unitPrice)||10000) : 10000;
+        modB[i]=true; modD[i]=true; continue;
+      }
     }
 
     if (cellA.indexOf('諸経費') > -1) {
@@ -493,6 +546,13 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     }
     if (cellA.indexOf('旅費') > -1 || cellA.indexOf('交通費') > -1) {
       if (travelTotal > 0) { colB[i][0] = 1; colE[i][0] = travelTotal; }
+      else { colB[i][0] = ''; colE[i][0] = ''; }
+      modB[i] = true; modE[i] = true;
+      continue;
+    }
+    if (cellA.indexOf('外注費') > -1) {
+      const outsourceTotal = parseInt(data.outsourceTotal) || 0;
+      if (outsourceTotal > 0) { colB[i][0] = 1; colE[i][0] = outsourceTotal; }
       else { colB[i][0] = ''; colE[i][0] = ''; }
       modB[i] = true; modE[i] = true;
       continue;
@@ -560,6 +620,25 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     sheet.getRange(totalRow, 12).setValue('合計(税抜):').setFontWeight('bold');
     sheet.getRange(totalRow, 13).setFormula('=SUM(M' + startRow + ':M' + (totalRow - 1) + ')').setFontWeight('bold');
     // 列幅はテンプレートで事前設定推奨 (毎回設定すると ~600ms 遅くなる)
+  }
+
+  // 外注明細 (H30〜M、project タイプ時のみ)
+  if (data.selectedType === 'project' && data.outsourceDetails && data.outsourceDetails.length > 0) {
+    const oStart = 30;
+    sheet.getRange('H' + oStart + ':M').clearContent();
+    sheet.getRange('H' + oStart + ':M' + oStart)
+      .setValues([['外注先','金額(税抜)','マークアップ%','請求金額(税抜)','','']])
+      .setFontWeight('bold').setBackground('#f6f0fc');
+    const oRows = data.outsourceDetails.map(o => {
+      const amt = Number(o.amount) || 0;
+      const mu = Number(o.markup) || 0;
+      const bill = Math.round(amt * (1 + mu / 100));
+      return [o.vendor || '', amt, mu, bill, '', ''];
+    });
+    sheet.getRange(oStart + 1, 8, oRows.length, 6).setValues(oRows);
+    const oTotalRow = oStart + 1 + oRows.length;
+    sheet.getRange(oTotalRow, 10).setValue('合計(税抜):').setFontWeight('bold');
+    sheet.getRange(oTotalRow, 11).setFormula('=SUM(K' + (oStart+1) + ':K' + (oTotalRow - 1) + ')').setFontWeight('bold');
   }
 
   // 共有設定: Advanced Drive API で setSharing より高速
