@@ -508,7 +508,8 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   let stage = '';
   let totalRowIndex = -1;
   const travelTotal = parseInt(data.travelTotal) || 0;
-  const people = parseInt(data.grPeople) || 1;
+  const peopleRaw = parseInt(data.grPeople);
+  const people = (isNaN(peopleRaw) || peopleRaw < 1) ? 1 : peopleRaw;
 
   for (let i = 0; i < colA.length; i++) {
     const cellA = String(colA[i][0]).trim();
@@ -518,23 +519,30 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     // グラレコ専用 (B7=人数, D7=1人分小計式, E7=B7*D7。B9〜B11 は1人分の値)
     if (data.selectedType === 'graphic') {
       const findItem = (name) => data.items.find(x => !x.isHeader && x.rankName === name);
-      if (cellA === 'グラフィックレコーディング' && (!colD[i][0] || colD[i][0] === '')) { colB[i][0] = people; modB[i]=true; continue; }
+      const safeNum = (v, fallback) => { const n = Number(v); return isNaN(n) ? fallback : n; };
+
+      // 集計行 (B7): C列が "時間" 以外のグラレコ行 = 集計行と判定 (D列の値に依存しない)
+      if (cellA === 'グラフィックレコーディング' && colC[i][0] !== '時間') {
+        colB[i][0] = people;
+        modB[i] = true;
+        continue;
+      }
       if (cellA === '基本料金') {
         const it = findItem('基本料金');
-        colB[i][0] = it ? (Number(it.hours)||1) : 1;
-        colD[i][0] = it ? (Number(it.unitPrice)||80000) : 80000;
+        colB[i][0] = it ? safeNum(it.hours, 1) : 1;
+        colD[i][0] = it ? safeNum(it.unitPrice, 80000) : 80000;
         modB[i]=true; modD[i]=true; continue;
       }
       if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') {
         const it = findItem('グラフィックレコーディング');
-        colB[i][0] = it ? (Number(it.hours)||2) : 2;
-        colD[i][0] = it ? (Number(it.unitPrice)||20000) : 20000;
+        colB[i][0] = it ? safeNum(it.hours, 2) : 2;
+        colD[i][0] = it ? safeNum(it.unitPrice, 20000) : 20000;
         modB[i]=true; modD[i]=true; continue;
       }
       if (cellA === '待機') {
         const it = findItem('待機');
-        colB[i][0] = it ? (Number(it.hours)||0) : 0;
-        colD[i][0] = it ? (Number(it.unitPrice)||10000) : 10000;
+        colB[i][0] = it ? safeNum(it.hours, 0) : 0;
+        colD[i][0] = it ? safeNum(it.unitPrice, 10000) : 10000;
         modB[i]=true; modD[i]=true; continue;
       }
     }
