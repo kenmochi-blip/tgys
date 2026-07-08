@@ -510,6 +510,7 @@ function updateSpreadsheetTemplate_(data, dateStr) {
   const travelTotal = parseInt(data.travelTotal) || 0;
   const peopleRaw = parseInt(data.grPeople);
   const people = (isNaN(peopleRaw) || peopleRaw < 1) ? 1 : peopleRaw;
+  let graphicSummaryDone = false;
 
   for (let i = 0; i < colA.length; i++) {
     const cellA = String(colA[i][0]).trim();
@@ -521,22 +522,24 @@ function updateSpreadsheetTemplate_(data, dateStr) {
       const findItem = (name) => data.items.find(x => !x.isHeader && x.rankName === name);
       const safeNum = (v, fallback) => { const n = Number(v); return isNaN(n) ? fallback : n; };
 
-      // 集計行 (B7): C列が "時間" 以外のグラレコ行 = 集計行と判定 (D列の値に依存しない)
-      if (cellA === 'グラフィックレコーディング' && colC[i][0] !== '時間') {
-        colB[i][0] = people;
-        modB[i] = true;
+      if (cellA === 'グラフィックレコーディング') {
+        // 最初に出てくるグラレコ行 = 集計行(人数)、以降は明細行(時間)
+        if (!graphicSummaryDone) {
+          colB[i][0] = people;
+          modB[i] = true;
+          graphicSummaryDone = true;
+        } else {
+          const it = findItem('グラフィックレコーディング');
+          colB[i][0] = it ? safeNum(it.hours, 2) : 2;
+          colD[i][0] = it ? safeNum(it.unitPrice, 20000) : 20000;
+          modB[i]=true; modD[i]=true;
+        }
         continue;
       }
       if (cellA === '基本料金') {
         const it = findItem('基本料金');
         colB[i][0] = it ? safeNum(it.hours, 1) : 1;
         colD[i][0] = it ? safeNum(it.unitPrice, 80000) : 80000;
-        modB[i]=true; modD[i]=true; continue;
-      }
-      if (cellA === 'グラフィックレコーディング' && colC[i][0] === '時間') {
-        const it = findItem('グラフィックレコーディング');
-        colB[i][0] = it ? safeNum(it.hours, 2) : 2;
-        colD[i][0] = it ? safeNum(it.unitPrice, 20000) : 20000;
         modB[i]=true; modD[i]=true; continue;
       }
       if (cellA === '待機') {
