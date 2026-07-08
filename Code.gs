@@ -540,7 +540,8 @@ function updateSpreadsheetTemplate_(data, dateStr) {
     }
 
     if (cellA.indexOf('諸経費') > -1) {
-      colD[i][0] = (parseFloat(data.overheadRate) || 30) / 100;
+      const rate = parseFloat(data.overheadRate);
+      colD[i][0] = (isNaN(rate) ? 30 : rate) / 100;
       modD[i] = true;
       continue;
     }
